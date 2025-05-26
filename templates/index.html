@@ -1,0 +1,430 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal RAG System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-item {
+            text-align: center;
+        }
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #fafafa;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #667eea;
+            color: white;
+            margin-left: 20%;
+        }
+        .bot-message {
+            background-color: #e9ecef;
+            color: #333;
+            margin-right: 20%;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .query-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .send-button {
+            padding: 10px 20px;
+            background-color: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .send-button:hover {
+            background-color: #5a6fd8;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #e9ecef;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #667eea;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .file-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .file-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background-color: #28a745; }
+        .status-offline { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Multimodal RAG System</h1>
+        <p>Chat with your pre-processed documents and audio files</p>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-value">{{ doc_count }}</div>
+            <div>📄 Documents</div>
+        </div>
+        <div class="status-item">
+            <div class="status-value">{{ audio_count }}</div>
+            <div>🎵 Audio Files</div>
+        </div>
+        <div class="status-item">
+            <div class="status-indicator {% if ollama_status %}status-online{% else %}status-offline{% endif %}"></div>
+            <div>Ollama Status</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('documents')">📄 Document Chat</button>
+        <button class="tab" onclick="showTab('audio')">🎵 Audio Chat</button>
+        <button class="tab" onclick="showTab('status')">📊 System Status</button>
+    </div>
+
+    <div id="documents" class="tab-content active">
+        <div class="chat-container">
+            <h3>📄 Document Chat</h3>
+            <div class="file-list">
+                <h4>Available Documents:</h4>
+                <div id="document-list">Loading...</div>
+            </div>
+            <div class="chat-messages" id="doc-messages"></div>
+            <div class="input-group">
+                <select id="doc-select" class="query-input">
+                    <option value="">Select a document...</option>
+                </select>
+                <input type="text" id="doc-query" class="query-input" placeholder="Ask about the document...">
+                <button class="send-button" onclick="sendDocQuery()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="audio" class="tab-content">
+        <div class="chat-container">
+            <h3>🎵 Audio Chat</h3>
+            <div class="file-list">
+                <h4>Available Audio Files:</h4>
+                <div id="audio-list">Loading...</div>
+            </div>
+            <div class="chat-messages" id="audio-messages"></div>
+            <div class="input-group">
+                <select id="audio-select" class="query-input">
+                    <option value="">Select an audio file...</option>
+                </select>
+                <input type="text" id="audio-query" class="query-input" placeholder="Ask about the audio...">
+                <button class="send-button" onclick="sendAudioQuery()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="status" class="tab-content">
+        <div class="chat-container">
+            <h3>📊 System Status</h3>
+            <div id="system-status">
+                <button class="send-button" onclick="refreshStatus()">Refresh Status</button>
+                <div id="status-content">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let systemStatus = {};
+
+        // Tab functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Load system status
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                systemStatus = await response.json();
+
+                // Update document list
+                const docList = document.getElementById('document-list');
+                const docSelect = document.getElementById('doc-select');
+
+                if (systemStatus.available_docs && systemStatus.available_docs.length > 0) {
+                    docList.innerHTML = systemStatus.available_docs.map(doc =>
+                        `<div class="file-item">📄 ${doc}</div>`
+                    ).join('');
+
+                    docSelect.innerHTML = '<option value="">Select a document...</option>' +
+                        systemStatus.available_docs.map(doc =>
+                            `<option value="${doc}">${doc}</option>`
+                        ).join('');
+                } else {
+                    docList.innerHTML = '<div class="file-item">No documents available</div>';
+                }
+
+                // Update audio list
+                const audioList = document.getElementById('audio-list');
+                const audioSelect = document.getElementById('audio-select');
+
+                if (systemStatus.available_audio && systemStatus.available_audio.length > 0) {
+                    audioList.innerHTML = systemStatus.available_audio.map(audio =>
+                        `<div class="file-item">🎵 ${audio}</div>`
+                    ).join('');
+
+                    audioSelect.innerHTML = '<option value="">Select an audio file...</option>' +
+                        systemStatus.available_audio.map(audio =>
+                            `<option value="${audio}">${audio}</option>`
+                        ).join('');
+                } else {
+                    audioList.innerHTML = '<div class="file-item">No audio files available</div>';
+                }
+
+            } catch (error) {
+                console.error('Error loading status:', error);
+                document.getElementById('document-list').innerHTML = '<div class="file-item">Error loading documents</div>';
+                document.getElementById('audio-list').innerHTML = '<div class="file-item">Error loading audio files</div>';
+            }
+        }
+
+        // Send document query
+        async function sendDocQuery() {
+            const docId = document.getElementById('doc-select').value;
+            const query = document.getElementById('doc-query').value;
+
+            if (!docId) {
+                alert('Please select a document first');
+                return;
+            }
+
+            if (!query.trim()) {
+                alert('Please enter a query');
+                return;
+            }
+
+            // Add user message to chat
+            addMessage('doc-messages', query, 'user');
+            document.getElementById('doc-query').value = '';
+
+            try {
+                const response = await fetch(`/api/query_doc/${docId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    addMessage('doc-messages', `Error: ${data.error}`, 'bot');
+                } else {
+                    addMessage('doc-messages', data.response, 'bot');
+                }
+
+            } catch (error) {
+                addMessage('doc-messages', `Error: ${error.message}`, 'bot');
+            }
+        }
+
+        // Send audio query
+        async function sendAudioQuery() {
+            const audioId = document.getElementById('audio-select').value;
+            const query = document.getElementById('audio-query').value;
+
+            if (!audioId) {
+                alert('Please select an audio file first');
+                return;
+            }
+
+            if (!query.trim()) {
+                alert('Please enter a query');
+                return;
+            }
+
+            // Add user message to chat
+            addMessage('audio-messages', query, 'user');
+            document.getElementById('audio-query').value = '';
+
+            try {
+                const response = await fetch(`/api/query_audio/${audioId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    addMessage('audio-messages', `Error: ${data.error}`, 'bot');
+                } else {
+                    addMessage('audio-messages', data.response, 'bot');
+                }
+
+            } catch (error) {
+                addMessage('audio-messages', `Error: ${error.message}`, 'bot');
+            }
+        }
+
+        // Add message to chat
+        function addMessage(containerId, message, sender) {
+            const container = document.getElementById(containerId);
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            messageDiv.textContent = message;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Refresh system status
+        async function refreshStatus() {
+            const statusContent = document.getElementById('status-content');
+            statusContent.innerHTML = 'Loading...';
+
+            try {
+                await loadStatus();
+
+                statusContent.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                        <h4>📊 System Information</h4>
+                        <p><strong>Documents:</strong> ${systemStatus.documents}</p>
+                        <p><strong>Audio Files:</strong> ${systemStatus.audio}</p>
+                        <p><strong>Ollama Status:</strong> ${systemStatus.ollama_running ? '✅ Running' : '❌ Not Running'}</p>
+
+                        <h4>📄 Available Documents</h4>
+                        <ul>
+                            ${systemStatus.available_docs ? systemStatus.available_docs.map(doc => `<li>${doc}</li>`).join('') : '<li>No documents</li>'}
+                        </ul>
+
+                        <h4>🎵 Available Audio Files</h4>
+                        <ul>
+                            ${systemStatus.available_audio ? systemStatus.available_audio.map(audio => `<li>${audio}</li>`).join('') : '<li>No audio files</li>'}
+                        </ul>
+
+                        ${!systemStatus.ollama_running ? `
+                        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 15px;">
+                            <strong>⚠️ Ollama Not Running</strong><br>
+                            To enable chat functionality, please start Ollama:
+                            <pre style="background: #f8f9fa; padding: 10px; margin-top: 10px;">
+ollama serve
+ollama pull llava:7b</pre>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+
+            } catch (error) {
+                statusContent.innerHTML = `<div style="color: red;">Error loading status: ${error.message}</div>`;
+            }
+        }
+
+        // Enter key support
+        document.getElementById('doc-query').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                sendDocQuery();
+            }
+        });
+
+        document.getElementById('audio-query').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                sendAudioQuery();
+            }
+        });
+
+        // Load status on page load
+        window.onload = function() {
+            loadStatus();
+            refreshStatus();
+        };
+    </script>
+</body>
+</html>

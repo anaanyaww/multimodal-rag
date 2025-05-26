@@ -1,0 +1,13 @@
+{
+    "metrics": {
+        "processing_time": 175.0217423439026,
+        "num_text_chunks": 10,
+        "num_tables": 0,
+        "num_images": 68,
+        "vectorstore_size": 78
+    },
+    "text_count": 2,
+    "table_count": 0,
+    "image_count": 2,
+    "collection_name": "doc_JD_techolution.pdf"
+}
