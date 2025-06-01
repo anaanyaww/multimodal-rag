@@ -1,8 +1,8 @@
-# 🎯 Enterprise Multimodal RAG System
+# Enterprise Multimodal RAG System
 
 A production-ready multimodal Retrieval-Augmented Generation system that processes documents and audio files with fine-tuning capabilities.
 
-## 🚀 Features
+##  Features
 
 - **Multimodal Processing**: PDFs (text/tables/images) and audio files
 - **Advanced RAG**: BGE embeddings with ChromaDB vector storage
